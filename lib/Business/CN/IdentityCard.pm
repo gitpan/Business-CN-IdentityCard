@@ -3,7 +3,7 @@ package Business::CN::IdentityCard;
 use strict;
 use vars qw($VERSION @ISA @EXPORT $errstr);
 use Exporter;
-$VERSION = '0.02';
+$VERSION = '0.03';
 @ISA = qw(Exporter);
 @EXPORT = qw(validate_id $errstr);
 
@@ -24,7 +24,7 @@ sub validate_id {
 	
 	# validate the birthday
 	# the regex match birthday like 19491102 or 20050315, not exactly right(wrong match 19840231).
-	unless (substr($id, 6, 8) =~ /^(19|20)\d{2}((0\d)|(11|12))(([012]\d)|(3[01]))$/) {
+	unless (substr($id, 6, 8) =~ /^(19|20)\d{2}((0\d)|(1[012]))(([012]\d)|(3[01]))$/) {
 		$errstr = 'the birthday no. is faked';
 		return 0;
 	}
@@ -81,9 +81,11 @@ if it's right, return 1. otherwise, return 0.
 
 =head1 HISTORY
 
-0.01 - Thanks for Adam Kennedy's advice. I change the module name from 'China::IdentityCard::Validate'.
+0.01 - I change the module name from 'China::IdentityCard::Validate'. Thanks for Adam Kennedy's advice.
 
 0.02 - Add the $errstr(error string)
+
+0.03 - fix a regex bug, thanks for joe's help
 
 =head1 BUGS
 

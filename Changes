@@ -8,3 +8,6 @@ Revision history for Perl extension Business::CN::IdentityCard.
 
 0.02 Thurs Mar 17 11:21:44 2005
 	- Add the $errstr(error string)
+
+0.03 Fri Mar 18 10:37:44 2005
+	- fix a regex bug, thanks for joe's help
