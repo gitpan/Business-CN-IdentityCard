@@ -1,24 +1,33 @@
 package Business::CN::IdentityCard;
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT);
+use vars qw($VERSION @ISA @EXPORT $errstr);
 use Exporter;
-$VERSION = '0.01';
+$VERSION = '0.02';
 @ISA = qw(Exporter);
-@EXPORT = qw(validate_id);
+@EXPORT = qw(validate_id $errstr);
 
 sub validate_id {
 	my $id = shift;
-	$id =~ /^\d{17}(\d|x)$/i or return 0;
+	if ($id !~ /^\d{17}(\d|x)$/i) {
+		$errstr = 'we only support the 18 lengthy of card id';
+		return 0;
+	}
 	
 	# validate the province
 	my @province = ('','','','','','','','','','','','北京','天津','河北','山西','内蒙古','','','','','','辽宁','吉林','黑龙江','','','','','','','','上海','江苏','浙江','安微','福建','江西','山东','','','','河南','湖北','湖南','广东','广西','海南','','','','重庆','四川','贵州','云南','西藏','','','','','','','陕西','甘肃','青海','宁夏','新疆','','','','','','台湾','','','','','','','','','','香港','澳门','','','','','','','','','国外');
 	my $province = substr($id, 0, 2);
-	unless($province[$province]) { return 0; }
+	unless($province[$province]) {
+		$errstr = 'maybe the province no. is faked';
+		return 0;
+	}
 	
 	# validate the birthday
 	# the regex match birthday like 19491102 or 20050315, not exactly right(wrong match 19840231).
-	unless (substr($id, 6, 8) =~ /^(19|20)\d{2}((0\d)|(11|12))(([012]\d)|(3[01]))$/) { return 0; }
+	unless (substr($id, 6, 8) =~ /^(19|20)\d{2}((0\d)|(11|12))(([012]\d)|(3[01]))$/) {
+		$errstr = 'the birthday no. is faked';
+		return 0;
+	}
 	
 	my @gene = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2);
 	my @v_code = ('1','0','X','9','8','7','6','5','4','3','2');
@@ -34,6 +43,7 @@ sub validate_id {
 	if ($v_mun =~ /^$v_code[$s_mod_ed]$/i) { # for special X
 		return 1;
 	} else {
+		$errstr = 'the last no. is wrong';
 		return 0;
 	}
 }
@@ -54,7 +64,7 @@ Business::CN::IdentityCard -  Validate the Identity Card no. in China
   if (validate_id($id)) { # call the validate_id method
     print 'Pass';
   } else {
-    print 'failed, maybe faked.';
+    print $errstr; # the scalar contains the error string
   }
 
 =head1 DESCRIPTION
@@ -71,7 +81,9 @@ if it's right, return 1. otherwise, return 0.
 
 =head1 HISTORY
 
-Thanks for Adam Kennedy's advice. I change the module name from 'China::IdentityCard::Validate'.
+0.01 - Thanks for Adam Kennedy's advice. I change the module name from 'China::IdentityCard::Validate'.
+
+0.02 - Add the $errstr(error string)
 
 =head1 BUGS
 

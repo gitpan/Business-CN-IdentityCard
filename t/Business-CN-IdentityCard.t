@@ -5,7 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 3;
+use Test::More tests => 4;
 BEGIN { use_ok('Business::CN::IdentityCard') };
 
 #########################
@@ -15,3 +15,4 @@ BEGIN { use_ok('Business::CN::IdentityCard') };
 
 is(validate_id('11010519491231002X'), 1, 'test a certain ture id no.');
 is(validate_id('110105194912310021'), 0, 'test a faked id no.');
+is($errstr, 'the last no. is wrong', 'test the $errstr');

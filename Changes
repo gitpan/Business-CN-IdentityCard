@@ -5,3 +5,6 @@ Revision history for Perl extension Business::CN::IdentityCard.
 		-AX -n Business::CN::IdentityCard
 	- I changed 'China::IdentityCard::Validate' to 'Business::CN::IdentityCard'. 
 	- Thanks for Adam Kennedy's advice.
+
+0.02 Thurs Mar 17 11:21:44 2005
+	- Add the $errstr(error string)
