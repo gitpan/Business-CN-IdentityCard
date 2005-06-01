@@ -1,10 +1,18 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Business-CN-IdentityCard
-version:      0.03
-version_from: lib/Business/CN/IdentityCard.pm
-installdirs:  site
+---
+name: Business-CN-IdentityCard
+version: 0.04
+author:
+  - Fayland <fayland@gmail.com>
+abstract: Validate the Identity Card NO. in China
+license: perl
 requires:
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.25
+  Class::Accessor::Fast: 0
+  Class::Date: 0
+provides:
+  Business::CN::IdentityCard:
+    file: lib/Business/CN/IdentityCard.pm
+    version: 0.04
+  Business::CN::IdentityCard::District:
+    file: lib/Business/CN/IdentityCard/District.pm
+    version: 0.01
+generated_by: Module::Build version 0.261

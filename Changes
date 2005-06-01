@@ -11,3 +11,7 @@ Revision history for Perl extension Business::CN::IdentityCard.
 
 0.03 Fri Mar 18 10:37:44 2005
 	- fix a regex bug, thanks for joe's help
+
+0.04 Wed Jun 1 21:50:44
+	- totally new rewrite of this module
+	- see Chinese document http://www.fayland.org/IDCard/Validate.html for details

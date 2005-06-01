@@ -1,91 +1,246 @@
 package Business::CN::IdentityCard;
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT $errstr);
-use Exporter;
-$VERSION = '0.03';
-@ISA = qw(Exporter);
-@EXPORT = qw(validate_id $errstr);
+use vars qw($VERSION);
+$VERSION = '0.04';
+use base 'Class::Accessor::Fast';
+use Class::Date qw/:errors date/; # for validate_birthday
 
-sub validate_id {
-	my $id = shift;
-	if ($id !~ /^\d{17}(\d|x)$/i) {
-		$errstr = 'we only support the 18 lengthy of card id';
+__PACKAGE__->mk_accessors(qw/err errstr province birthday/);
+
+sub new {
+	my ($proto, $id) = @_; # $id = the IdentityCard string
+	my $class = ref($proto) || $proto;
+	my $self = bless { }, $class;
+
+	$self->_parse($id) if ($id);
+
+	return $self;
+}
+
+sub _parse {
+	my $self = shift;
+	my $id = lc shift;
+	
+	unless ($id =~ /^(\d{17}(\d|x)|\d{15})$/) {
+		$self->err('LENGTH');
+		$self->errstr("Must be 15 or 18 length number!");
 		return 0;
 	}
 	
-	# validate the province
+	$self->{id} = $id;
+
+	# parse
+	( $self->{benti},
+	  $self->{province_code}, $self->{district_code},
+	  $self->{birthday}, $self->{serial_number},
+	  $self->{postfix} )
+
+	= ( length($id) == 18 )
+			? ( $id =~ /((\d{2})(\d{4})(\d{8})(\d{3}))(\w)/ )
+			: ( $id =~ /((\d{2})(\d{4})(\d{6})(\d{3}))/ );
+	return 1;
+}
+
+sub validate {
+	my ($self, $id) = @_;
+
+	# we support new($id)+validate and new()+validate($id)
+	unless($id) { $id = $self->{id}; }
+	$self->_parse($id);
+
+	$self->validate_province() and
+	$self->validate_birthday() and
+	$self->validate_postfix();
+	
+	return 0 if ($self->err);
+	return 1;
+}
+
+sub validate_province {
+	my $self = shift;
+
 	my @province = ('','','','','','','','','','','','北京','天津','河北','山西','内蒙古','','','','','','辽宁','吉林','黑龙江','','','','','','','','上海','江苏','浙江','安微','福建','江西','山东','','','','河南','湖北','湖南','广东','广西','海南','','','','重庆','四川','贵州','云南','西藏','','','','','','','陕西','甘肃','青海','宁夏','新疆','','','','','','台湾','','','','','','','','','','香港','澳门','','','','','','','','','国外');
-	my $province = substr($id, 0, 2);
-	unless($province[$province]) {
-		$errstr = 'maybe the province no. is faked';
+	my $province = substr($self->{id}, 0, 2);
+	if (! $province[$self->{province_code}]) {
+		$self->err('PROVINCE');
+		$self->errstr('Province is faked');
 		return 0;
-	}
-	
-	# validate the birthday
-	# the regex match birthday like 19491102 or 20050315, not exactly right(wrong match 19840231).
-	unless (substr($id, 6, 8) =~ /^(19|20)\d{2}((0\d)|(1[012]))(([012]\d)|(3[01]))$/) {
-		$errstr = 'the birthday no. is faked';
-		return 0;
-	}
-	
-	my @gene = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2);
-	my @v_code = ('1','0','X','9','8','7','6','5','4','3','2');
-	
-	my @id = split(//, $id);
-	my $v_mun = pop(@id);
-	
-	my $sum;
-	foreach (0 .. 16) {
-		$sum += $id[$_] * $gene[$_];
-	}
-	my $s_mod_ed = $sum % 11;
-	if ($v_mun =~ /^$v_code[$s_mod_ed]$/i) { # for special X
-		return 1;
 	} else {
-		$errstr = 'the last no. is wrong';
-		return 0;
+		$self->province($province[$self->{province_code}]);
+		return 1;
 	}
 }
+
+sub validate_birthday {
+	my $self = shift;
+
+	my ($year,$month,$day) = ( $self->birthday =~ /(\d{2,4})(\d{2})(\d{2})$/ );
+	$year = ( length $year == 4 ) ? $year : '19'.$year;
+	my $birthday = "$year-$month-$day";
+	
+	# because Class::Date's date doesn't support date before 1970?
+	my $date_obj;
+	if ($year < 1970) {
+		$date_obj = date "1971-$month-$day";
+	} else {
+		$date_obj = date $birthday;
+	}
+
+	if ($date_obj->error || $year < 1900) {
+		$self->err('BIRTHDAY');
+		$self->errstr(sprintf("birthday: %s is invalid, %s !", $self->birthday, $date_obj->errstr  ));
+		return 0;
+	} else {
+		$self->birthday($birthday);
+		return 1;
+	}
+}
+
+sub validate_postfix {
+	my $self = shift;
+	return 1 if (length($self->{id}) == 15);
+
+	my @gene = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2);
+	my @v_code = ('1','0','x','9','8','7','6','5','4','3','2');
+	my @id = split(//, $self->{benti});
+	
+	my $sum;
+	map { $sum += $id[$_] * $gene[$_] } (0..16);
+
+	if ($self->{postfix} ne $v_code[ $sum % 11 ]) {
+		$self->err('POSTFIX');
+		$self->errstr('postfix is invalid!');
+		return 0;
+	}
+	return 1;
+}
+
+sub gender {
+	my ($self, $format) = @_;
+	$format = 'CN' unless ($format);
+	if ($self->{serial_number} % 2 == 0 ) {
+		return ($format eq 'CN') ? '女' : 'Female';
+	} else {
+		return ($format eq 'CN') ? '男' : 'Male';
+	}
+}
+
+sub district {
+	my $self = shift;
+	eval('require Business::CN::IdentityCard::District;');
+	my $key = $self->{province_code} . $self->{district_code};
+	if (exists $Business::CN::IdentityCard::District::district{$key}) {
+		return $Business::CN::IdentityCard::District::district{$key};
+	} else {
+		$self->err('DISTRICT');
+		$self->errstr(sprintf("district code: %s is invalid or unkown district!", $key ));
+		return undef;
+	}
+}	
 
 1;
 __END__
 
 =head1 NAME
 
-Business::CN::IdentityCard -  Validate the Identity Card no. in China
+Business::CN::IdentityCard -  Validate the Identity Card NO. in China
 
 =head1 SYNOPSIS
 
   use Business::CN::IdentityCard;
-  
   my $id = '11010519491231002X'; # a unsure identity card no.
-  
-  if (validate_id($id)) { # call the validate_id method
+  my $idv = new Business::CN::IdentityCard;
+  if ($idv->validate($id)) { # call the validate_id method
     print 'Pass';
+    print $idv->gender; # the gender of the id, default is *Chinese*
+    print $idv->gender('EN'); # the English gender: Male|Female
+    print $idv->birthday; # the birthday of the id, eg: 1975-10-31
+    print $idv->province; # the province of the id, in Chinese
+    print $idv->district; # the district of the id, *NOT* suggested
   } else {
-    print $errstr; # the scalar contains the error string
+  	print $idv->err; # the type of error, details see below
+    print $idv->errstr; # the error detail
   }
 
 =head1 DESCRIPTION
 
-There is a Chinese document @ L<http://www.1313s.com/f/IDCardValidate.html>. It explain the algorithm of how-to validate the Identity Card no.
+It validates the given Identity Card NO., and give some info(including gender, birthday, province and district) of the id.
 
-=head1 RESTRICTIONS
+There is a Chinese document @ L<http://www.fayland.org/IDCard/Validate.html>. It explain the algorithm of how-to validate the Identity Card no.
 
-*Only* 18-length id card no. is available. The old 15-length no. is under construction. 
+=head1 METHOD
 
-=head1 RETURN VALUE
+=over 4
 
-if it's right, return 1. otherwise, return 0.
+=item new
 
-=head1 HISTORY
+you can declare the object with the id, such as
 
-0.01 - I change the module name from 'China::IdentityCard::Validate'. Thanks for Adam Kennedy's advice.
+ my $idv = new Business::CN::IdentityCard($id);
+ $idv->validate;
 
-0.02 - Add the $errstr(error string)
+=item validate
 
-0.03 - fix a regex bug, thanks for joe's help
+if the id is provided by new, u can ignore the parameter, otherwise the parameter is needed. if the ID is correct, return 1, otherwise return 0 and u can get the error details. see below.
+
+=item gender
+
+return the gender of the id owner. default return the Chinese gender, use gender('EN') to get the Female or Male.
+
+=item birthday
+
+return the birthday of the id owner. the format is like YYYY-MM-DD
+
+=item province
+
+return the province of the id owner. It's Chinese.
+
+=item district
+
+B<NOT> suggested. because it's not perfect and takes memory. of course, use it if needed.
+
+=item err
+
+return the type of the error.
+
+=over 4
+
+=item B<LENGTH>
+
+if the length of the id is not 15 or 18.
+
+=item B<BIRTHDAY>
+
+if the birthday is not a normal date.
+
+=item B<PROVINCE>
+
+no such province code. :)
+
+=item B<DISTRICT>
+
+what district? I haven't heard that before.
+
+=item B<POSTFIX>
+
+the last digit is definitely faked.
+
+=back
+
+=item errstr
+
+the detail of the error
+
+=back
+
+=head1 CREDIT
+
+Adam Kennedy - who advises me to change 'China::IdentityCard::Validate' to this.
+
+chunzi - provide the basic of the enhanced version && district detail
+
+joe - fix a regex bug
 
 =head1 BUGS
 
@@ -102,6 +257,6 @@ Copyright (c) 2005 Fayland All rights reserved.
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
-See http://www.perl.com/perl/misc/Artistic.html
+See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
