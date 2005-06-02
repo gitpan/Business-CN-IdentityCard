@@ -2,9 +2,9 @@ package Business::CN::IdentityCard;
 
 use strict;
 use vars qw($VERSION);
-$VERSION = '0.04';
+$VERSION = '0.05';
 use base 'Class::Accessor::Fast';
-use Class::Date qw/:errors date/; # for validate_birthday
+use Date::Simple; # for validate_birthday
 
 __PACKAGE__->mk_accessors(qw/err errstr province birthday/);
 
@@ -79,21 +79,15 @@ sub validate_birthday {
 	$year = ( length $year == 4 ) ? $year : '19'.$year;
 	my $birthday = "$year-$month-$day";
 	
-	# because Class::Date's date doesn't support date before 1970?
-	my $date_obj;
-	if ($year < 1970) {
-		$date_obj = date "1971-$month-$day";
-	} else {
-		$date_obj = date $birthday;
-	}
+	my $date  = Date::Simple->new($birthday);
 
-	if ($date_obj->error || $year < 1900) {
-		$self->err('BIRTHDAY');
-		$self->errstr(sprintf("birthday: %s is invalid, %s !", $self->birthday, $date_obj->errstr  ));
-		return 0;
-	} else {
+	if ($date) {
 		$self->birthday($birthday);
 		return 1;
+	} else {
+		$self->err('BIRTHDAY');
+		$self->errstr(sprintf("birthday: %s is invalid!", $self->birthday));
+		return 0;
 	}
 }
 

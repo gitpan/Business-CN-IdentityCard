@@ -6,7 +6,7 @@ my $build = Module::Build->new(
     license            => 'perl',
     module_name        => 'Business::CN::IdentityCard',
     requires           => {
-        'Class::Date' => 0,
+        'Date::Simple' => 0,
     	'Class::Accessor::Fast' => 0,
     },
 );
